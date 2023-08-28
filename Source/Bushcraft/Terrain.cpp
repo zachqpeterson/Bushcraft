@@ -2,16 +2,12 @@
 
 #include "KismetProceduralMeshLibrary.h"
 #include "Runtime/Core/Public/Async/ParallelFor.h"
+#include "Landscape.h"
 #include "Noise.h"
 
 ATerrain::ATerrain()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
-	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
-	RootComponent = Mesh;
-	Mesh->bUseAsyncCooking = true;
-	Mesh->bUseComplexAsSimpleCollision = false;
 }
 
 void ATerrain::BeginPlay()
@@ -21,64 +17,76 @@ void ATerrain::BeginPlay()
 
 void ATerrain::OnConstruction(const FTransform& Transform)
 {
-	Vertices.SetNum((SizeX + 1) * (SizeY + 1));
-	Indices.SetNum(SizeX * SizeY * 6);
-	UV0.SetNum((SizeX + 1) * (SizeY + 1));
+	NoiseOffsets.Reset();
 
-	Mesh->ClearAllMeshSections();
-
-	Frequency = 1.0 / Wavelength;
+	FMath::RandInit(Seed);
+	for (uint8 octave = 0; octave < Octaves; ++octave)
+	{
+		NoiseOffsets.Add({ FMath::RandRange(-100000000.0, 100000000.0), FMath::RandRange(-100000000.0, 100000000.0) });
+	}
 
 	GenerateTerrain();
 }
 
 void ATerrain::GenerateTerrain()
 {
-	OffsetX = Scale * SizeX * 0.5f;
-	OffsetY = Scale * SizeY * 0.5f;
+	if (Landscape)
+	{
+		UTexture2D* heightmap = UTexture2D::CreateTransient(1009, 1009, EPixelFormat::PF_R16_UINT, "Heightmap");
+		heightmap->LODGroup = TEXTUREGROUP_Terrain_Heightmap;
 
-	GenerateHeightmap();
+		GenerateHeightmap(heightmap);
 
-	//UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices, Indices, UV0, Normals, Tangents);
-
-	Mesh->CreateMeshSection(0, Vertices, Indices, {}, UV0, {}, {}, true);
-	Mesh->SetMaterial(0, Material);
+		Landscape->LandscapeComponents[0]->SetHeightmap(heightmap);
+		Landscape->LandscapeComponents[0]->RequestHeightmapUpdate();
+		Landscape->LandscapeComponents[0]->PostLoad();
+	}
 }
 
-void ATerrain::GenerateHeightmap()
+void ATerrain::GenerateHeightmap(UTexture2D* texture)
 {
-	int32 num = SizeX * SizeY;
+	FTexture2DMipMap* mipMap = &texture->PlatformData->Mips[0];
+	FByteBulkData* imageData = &mipMap->BulkData;
+	uint16* rawImageData = (uint16*)imageData->Lock(LOCK_READ_WRITE);
 
-	ParallelFor(num, [&](int32 index)
+	if (rawImageData)
 	{
-		double x = index / (SizeY + 1);
-		double y = index % (SizeY + 1);
-		int32 vertex = index + index / SizeY;
-	
-		Vertices[index] = { x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) };
-		UV0[index] = {x * UVScale, y * UVScale};
+		int32 width = texture->GetSizeX();
+		int32 height = texture->GetSizeY();
+		int32 total = width * height;
 
-		Indices[index * 6] = vertex;
-		Indices[index * 6 + 1] = vertex + 1;
-		Indices[index * 6 + 2] = vertex + SizeY + 1;
-		Indices[index * 6 + 3] = vertex + 1;
-		Indices[index * 6 + 4] = vertex + SizeY + 2;
-		Indices[index * 6 + 5] = vertex + SizeY + 1;
-	});
+		ParallelFor(total, [&](int32 index)
+		{
+			double x = index / (height + 1);
+			double y = index % (height + 1);
 
-	int32 end = Vertices.Num();
-
-	for (int32 index = num; index < end; ++index)
-	{
-		double x = index / (SizeY + 1);
-		double y = index % (SizeY + 1);
-	
-		Vertices[index] = { x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) };
-		UV0[index] = { x * UVScale, y * UVScale };
+			rawImageData[index] = 255;//GetNoiseValue(x, y);
+		});
 	}
+
+	imageData->Unlock();
+	texture->UpdateResource();
 }
 
 double ATerrain::GetNoiseValue(double x, double y)
 {
-	return Noise::Simplex2(x * Scale * Frequency, y * Scale * Frequency) * Amplitude;
+	double amplitude = 1.0;
+	double frequency = 1.0;
+	double value = 0.0;
+
+	double sampleX = x * Scale;
+	double sampleY = y * Scale;
+
+	for (uint8 octave = 0; octave < Octaves; ++octave)
+	{
+		FVector2d& offset = NoiseOffsets[octave];
+		double simplex = Noise::Simplex2(sampleX * frequency + offset.X, sampleY * frequency + offset.Y) * 2.0 - 1.1;
+
+		value += simplex * amplitude;
+
+		amplitude *= Persistance;
+		frequency *= Lacunarity;
+	}
+
+	return value;
 }

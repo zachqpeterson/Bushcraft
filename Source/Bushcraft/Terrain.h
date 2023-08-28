@@ -2,11 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "ProceduralMeshComponent.h"
 #include "Terrain.generated.h"
 
-class UProceduralMeshComponent;
-class UMaterialInterface;
+class ALandscape;
 
 UCLASS()
 class BUSHCRAFT_API ATerrain : public AActor
@@ -16,42 +14,32 @@ class BUSHCRAFT_API ATerrain : public AActor
 public:
 	ATerrain();
 
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 1))
-	uint16 SizeX = 10;
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 1))
-	uint16 SizeY = 10;
+	UPROPERTY(EditAnywhere)
+	int64 Seed = 0;
 
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
 	double Scale = 1.0f;
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
 	double UVScale = 1.0f;
 
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.1))
-	double Amplitude = 1.0f;
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.1))
-	double Wavelength = 1.0f;
-
-	double Frequency;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+	uint8 Octaves = 1.0f;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.0, ClampMax = 1.0))
+	double Persistance = 0.5f;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 1.0))
+	double Lacunarity = 1.0f;
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
-	UMaterialInterface* Material;
+	ALandscape* Landscape;
 
 private:
 	void GenerateTerrain();
-	void GenerateHeightmap();
+	void GenerateHeightmap(UTexture2D* texture);
 	double GetNoiseValue(double x, double y);
 
-	UProceduralMeshComponent* Mesh;
-	TArray<FVector3d> Vertices;
-	TArray<int32> Indices;
-	TArray<FVector2d> UV0;
-	TArray<FVector3d> Normals;
-	TArray<FProcMeshTangent> Tangents;
-
-	double OffsetX;
-	double OffsetY;
+	TArray<FVector2d> NoiseOffsets;
 };
