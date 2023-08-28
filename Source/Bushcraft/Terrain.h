@@ -8,19 +8,6 @@
 class UProceduralMeshComponent;
 class UMaterialInterface;
 
-USTRUCT()
-struct FOctave
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
-	double Amplitude = 1.0f;
-	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
-	double Wavelength = 1.0f;
-
-	double Frequency;
-};
-
 UCLASS()
 class BUSHCRAFT_API ATerrain : public AActor
 {
@@ -39,11 +26,16 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
 	double UVScale = 1.0f;
 
-	UPROPERTY(EditAnywhere)
-	TArray<FOctave> Octaves;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.1))
+	double Amplitude = 1.0f;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.1))
+	double Wavelength = 1.0f;
+
+	double Frequency;
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* Material;
