@@ -1,19 +1,31 @@
 #include "Terrain.h"
 
 #include "Runtime/Core/Public/Async/ParallelFor.h"
+#include "RealtimeMeshComponent.h"
 #include "Noise.h"
 
 ATerrain::ATerrain()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	MeshComponent = NewObject<URealtimeMeshComponent>();
+	Mesh = MeshComponent->InitializeRealtimeMesh<URealtimeMeshSimple>();
+	SectionConfig = FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 0);
 }
 
 void ATerrain::BeginPlay()
 {
 	Super::BeginPlay();
+}
 
 void ATerrain::OnConstruction(const FTransform& Transform)
 {
+	MeshData.Positions.SetNum((SizeX + 1) * (SizeY + 1), false);
+	MeshData.Triangles.SetNum(SizeX * SizeY * 6, false);
+	MeshData.UV0.SetNum((SizeX + 1) * (SizeY + 1), false);
+	OffsetX = SizeX / 2.0;
+	OffsetY = SizeY / 2.0;
+
 	NoiseOffsets.Reset();
 
 	FMath::RandInit(Seed);
@@ -27,44 +39,43 @@ void ATerrain::OnConstruction(const FTransform& Transform)
 
 void ATerrain::GenerateTerrain()
 {
-	GenerateHeightmap(heightmap);
+	GenerateHeightmap();
+
+	FRealtimeMeshSectionKey StaticSectionKey = Mesh->CreateMeshSection(0, SectionConfig, MeshData, true);
+	//Mesh->UpdateSectionMesh(StaticSectionKey, MeshData);
 }
 
-void ATerrain::GenerateHeightmap(UTexture2D* texture)
+void ATerrain::GenerateHeightmap()
 {
-	int32 vertex = 0;
+	int32 num = SizeX * SizeY;
 
-	for (uint32 x = 0; x < SizeX; ++x)
+	ParallelFor(num, [&](int32 index)
 	{
-		for (uint32 y = 0; y < SizeY; ++y)
-		{
-			Vertices.Add({ x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) });
-			UV0.Add({ x * UVScale, y * UVScale });
-
-			Indices.Add(vertex);
-			Indices.Add(vertex + 1);
-			Indices.Add(vertex + SizeY + 1);
-			Indices.Add(vertex + 1);
-			Indices.Add(vertex + SizeY + 2);
-			Indices.Add(vertex + SizeY + 1);
-
-			++vertex;
-		}
-
-		Vertices.Add({ x * Scale - OffsetX, SizeY * Scale - OffsetY, GetNoiseValue(x, SizeY) });
-		UV0.Add({ x * UVScale, SizeY * UVScale });
-
-		++vertex;
-	}
-
-	for (uint32 y = 0; y < SizeY; ++y)
+		double x = index / (SizeY + 1);
+		double y = index % (SizeY + 1);
+		int32 vertex = index + index / SizeY;
+	
+		MeshData.Positions[index] = { x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) };
+		MeshData.UV0[index] = { x * UVScale, y * UVScale };
+	
+		MeshData.Triangles[index * 6] = vertex;
+		MeshData.Triangles[index * 6 + 1] = vertex + 1;
+		MeshData.Triangles[index * 6 + 2] = vertex + SizeY + 1;
+		MeshData.Triangles[index * 6 + 3] = vertex + 1;
+		MeshData.Triangles[index * 6 + 4] = vertex + SizeY + 2;
+		MeshData.Triangles[index * 6 + 5] = vertex + SizeY + 1;
+	});
+	
+	int32 end = MeshData.Positions.Num();
+	
+	for (int32 index = num; index < end; ++index)
 	{
-		Vertices.Add({ SizeX * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(SizeX, y) });
-		UV0.Add({ SizeX * UVScale, y * UVScale });
+		double x = index / (SizeY + 1);
+		double y = index % (SizeY + 1);
+	
+		MeshData.Positions[index] = { x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) };
+		MeshData.UV0[index] = { x * UVScale, y * UVScale };
 	}
-
-	Vertices.Add({ SizeX * Scale - OffsetX, SizeY * Scale - OffsetY, GetNoiseValue(SizeX, SizeY) });
-	UV0.Add({ SizeX * UVScale, SizeY * UVScale });
 }
 
 double ATerrain::GetNoiseValue(double x, double y)

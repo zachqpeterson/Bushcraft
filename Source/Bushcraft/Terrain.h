@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "RealtimeMeshSimple.h"
 #include "Terrain.generated.h"
 
 UCLASS()
@@ -15,6 +16,10 @@ public:
 	UPROPERTY(EditAnywhere)
 	int64 Seed = 0;
 
+	UPROPERTY(EditAnywhere)
+	uint32 SizeX = 100;
+	UPROPERTY(EditAnywhere)
+	uint32 SizeY = 100;
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
 	double Scale = 1.0f;
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
@@ -29,14 +34,22 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* Material;
 
 private:
 	void GenerateTerrain();
-	void GenerateHeightmap(UTexture2D* texture);
+	void GenerateHeightmap();
 	double GetNoiseValue(double x, double y);
 
+	URealtimeMeshComponent* MeshComponent;
+	URealtimeMeshSimple* Mesh;
+	FRealtimeMeshSimpleMeshData MeshData{};
+	FRealtimeMeshSectionConfig SectionConfig;
+
 	TArray<FVector2d> NoiseOffsets;
+	double OffsetX;
+	double OffsetY;
 };
