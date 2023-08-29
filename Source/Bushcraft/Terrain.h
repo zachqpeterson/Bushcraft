@@ -4,8 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "Terrain.generated.h"
 
-class ALandscape;
-
 UCLASS()
 class BUSHCRAFT_API ATerrain : public AActor
 {
@@ -31,10 +29,9 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
-	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
-	ALandscape* Landscape;
+	UMaterialInterface* Material;
 
 private:
 	void GenerateTerrain();

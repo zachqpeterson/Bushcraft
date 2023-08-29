@@ -1,8 +1,6 @@
 #include "Terrain.h"
 
-#include "KismetProceduralMeshLibrary.h"
 #include "Runtime/Core/Public/Async/ParallelFor.h"
-#include "Landscape.h"
 #include "Noise.h"
 
 ATerrain::ATerrain()
@@ -13,7 +11,6 @@ ATerrain::ATerrain()
 void ATerrain::BeginPlay()
 {
 	Super::BeginPlay();
-}
 
 void ATerrain::OnConstruction(const FTransform& Transform)
 {
@@ -30,42 +27,44 @@ void ATerrain::OnConstruction(const FTransform& Transform)
 
 void ATerrain::GenerateTerrain()
 {
-	if (Landscape)
-	{
-		UTexture2D* heightmap = UTexture2D::CreateTransient(1009, 1009, EPixelFormat::PF_R16_UINT, "Heightmap");
-		heightmap->LODGroup = TEXTUREGROUP_Terrain_Heightmap;
-
-		GenerateHeightmap(heightmap);
-
-		Landscape->LandscapeComponents[0]->SetHeightmap(heightmap);
-		Landscape->LandscapeComponents[0]->RequestHeightmapUpdate();
-		Landscape->LandscapeComponents[0]->PostLoad();
-	}
+	GenerateHeightmap(heightmap);
 }
 
 void ATerrain::GenerateHeightmap(UTexture2D* texture)
 {
-	FTexture2DMipMap* mipMap = &texture->PlatformData->Mips[0];
-	FByteBulkData* imageData = &mipMap->BulkData;
-	uint16* rawImageData = (uint16*)imageData->Lock(LOCK_READ_WRITE);
+	int32 vertex = 0;
 
-	if (rawImageData)
+	for (uint32 x = 0; x < SizeX; ++x)
 	{
-		int32 width = texture->GetSizeX();
-		int32 height = texture->GetSizeY();
-		int32 total = width * height;
-
-		ParallelFor(total, [&](int32 index)
+		for (uint32 y = 0; y < SizeY; ++y)
 		{
-			double x = index / (height + 1);
-			double y = index % (height + 1);
+			Vertices.Add({ x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) });
+			UV0.Add({ x * UVScale, y * UVScale });
 
-			rawImageData[index] = 255;//GetNoiseValue(x, y);
-		});
+			Indices.Add(vertex);
+			Indices.Add(vertex + 1);
+			Indices.Add(vertex + SizeY + 1);
+			Indices.Add(vertex + 1);
+			Indices.Add(vertex + SizeY + 2);
+			Indices.Add(vertex + SizeY + 1);
+
+			++vertex;
+		}
+
+		Vertices.Add({ x * Scale - OffsetX, SizeY * Scale - OffsetY, GetNoiseValue(x, SizeY) });
+		UV0.Add({ x * UVScale, SizeY * UVScale });
+
+		++vertex;
 	}
 
-	imageData->Unlock();
-	texture->UpdateResource();
+	for (uint32 y = 0; y < SizeY; ++y)
+	{
+		Vertices.Add({ SizeX * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(SizeX, y) });
+		UV0.Add({ SizeX * UVScale, y * UVScale });
+	}
+
+	Vertices.Add({ SizeX * Scale - OffsetX, SizeY * Scale - OffsetY, GetNoiseValue(SizeX, SizeY) });
+	UV0.Add({ SizeX * UVScale, SizeY * UVScale });
 }
 
 double ATerrain::GetNoiseValue(double x, double y)
