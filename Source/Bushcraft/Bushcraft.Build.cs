@@ -11,6 +11,6 @@ public class Bushcraft : ModuleRules
 		MinFilesUsingPrecompiledHeaderOverride = 1;
 		bUseUnity = false;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "EnhancedInput", "Niagara", "RealtimeMeshComponent" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "EnhancedInput", "Niagara", "ProceduralMeshComponent" });
 	}
 }

@@ -2,8 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "RealtimeMeshSimple.h"
 #include "Terrain.generated.h"
+
+class UProceduralMeshComponent;
 
 UCLASS()
 class BUSHCRAFT_API ATerrain : public AActor
@@ -34,6 +35,7 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* Material;
@@ -43,10 +45,11 @@ private:
 	void GenerateHeightmap();
 	double GetNoiseValue(double x, double y);
 
-	URealtimeMeshComponent* MeshComponent;
-	URealtimeMeshSimple* Mesh;
-	FRealtimeMeshSimpleMeshData MeshData{};
-	FRealtimeMeshSectionConfig SectionConfig;
+	UProceduralMeshComponent* Mesh;
+
+	TArray<FVector3d> Positions;
+	TArray<FVector2d> UV0;
+	TArray<int32> Indices;
 
 	TArray<FVector2d> NoiseOffsets;
 	double OffsetX;
