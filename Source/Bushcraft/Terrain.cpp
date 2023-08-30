@@ -7,22 +7,22 @@
 ATerrain::ATerrain()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
-	MeshComponent = NewObject<URealtimeMeshComponent>();
-	Mesh = MeshComponent->InitializeRealtimeMesh<URealtimeMeshSimple>();
-	SectionConfig = FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 0);
 }
 
 void ATerrain::BeginPlay()
 {
 	Super::BeginPlay();
-}
 
-void ATerrain::OnConstruction(const FTransform& Transform)
-{
+	MeshComponent = NewObject<URealtimeMeshComponent>(this, "RMC");
+	RootComponent = MeshComponent;
+	Mesh = MeshComponent->InitializeRealtimeMesh<URealtimeMeshSimple>();
+	SectionConfig = FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 0);
+
 	MeshData.Positions.SetNum((SizeX + 1) * (SizeY + 1), false);
 	MeshData.Triangles.SetNum(SizeX * SizeY * 6, false);
 	MeshData.UV0.SetNum((SizeX + 1) * (SizeY + 1), false);
+	MeshData.Normals.SetNum((SizeX + 1) * (SizeY + 1), false);
+	MeshData.Tangents.SetNum((SizeX + 1) * (SizeY + 1), false);
 	OffsetX = SizeX / 2.0;
 	OffsetY = SizeY / 2.0;
 
@@ -57,6 +57,8 @@ void ATerrain::GenerateHeightmap()
 	
 		MeshData.Positions[index] = { x * Scale - OffsetX, y * Scale - OffsetY, GetNoiseValue(x, y) };
 		MeshData.UV0[index] = { x * UVScale, y * UVScale };
+		MeshData.Normals[index] = { 0.0, 0.0, 0.0 };
+		MeshData.Tangents[index] = { 0.0, 0.0, 0.0 };
 	
 		MeshData.Triangles[index * 6] = vertex;
 		MeshData.Triangles[index * 6 + 1] = vertex + 1;
