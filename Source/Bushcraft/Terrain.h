@@ -22,9 +22,9 @@ public:
 	UPROPERTY(EditAnywhere)
 	uint32 SizeY = 100;
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
-	double Scale = 1.0f;
+	double Scale = 10.0f;
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.001))
-	double UVScale = 1.0f;
+	double UVScale = 0.1f;
 
 	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
 	uint8 Octaves = 1.0f;
@@ -41,9 +41,28 @@ protected:
 	UMaterialInterface* Material;
 
 private:
-	void GenerateTerrain();
-	void GenerateHeightmap();
+	void SetupVertices();
+	void ResizeX();
+	void ResizeY();
+	void Rescale();
+	void RegenerateUVs();
+	void RegenerateHeightmap();
+
 	double GetNoiseValue(double x, double y);
+
+	bool firstConstruct = true;
+
+	int64 seed;
+	uint32 sizeX;
+	uint32 sizeY;
+	double scale;
+	double uvScale;
+
+	uint8 octaves;
+	double persistance;
+	double lacunarity;
+
+	UMaterialInterface* material;
 
 	UProceduralMeshComponent* Mesh;
 
